@@ -9,17 +9,31 @@ struct Note
 {
     float timestamp;
     float frequency;
+    float pulse;
     int waveform;
     float attack;
     float decay;
     float sustain;
     float release;
     float duration;
+    int ctrlOffset;
+    int ctrlCount;
 };
 
 layout(std430, binding = 0) restrict readonly buffer musicBuffer
 {
     Note notes[];
+};
+
+struct Ctrl
+{
+    float timestamp;
+    float frequency;
+};
+
+layout(std430, binding = 1) restrict readonly buffer ctrlBuffer
+{
+    Ctrl ctrl[];
 };
 
 layout(binding = 1) uniform samplerBuffer noiseBuffer;
@@ -43,16 +57,16 @@ float envelope(float attack, float decay, float sustain, float release, float du
     return 0.0f;
 }
 
-float waveform(int form, float t, float freq, float pulse/*, ctrl*/)
+float waveform(int form, float t, float freq, float pulse, int ctrlOffset, int ctrlCount)
 {
-    /*if ctrl:
-        for ct, cf in ctrl:
-            if ct > t:
-                break
-            freq = cf
-        t *= freq
-    else:*/
-        t *= freq;
+    for(int i = 0; i < ctrlCount; i++)
+    {
+        if(ctrl[ctrlOffset + i].timestamp > t)
+            break;
+        freq = ctrl[ctrlOffset + i].frequency;
+    }
+
+    t *= freq;
 
     float v = 1.0f;
     if((form & 0x10) != 0) // tri
@@ -74,7 +88,7 @@ float playNote(Note n, float t)
 {
     t -= n.timestamp;
 
-    float v = waveform(n.waveform, t, n.frequency, /*n.pulse*/0.0f);
+    float v = waveform(n.waveform, t, n.frequency, n.pulse, n.ctrlOffset, n.ctrlCount);
     v *= envelope(n.attack, n.decay, n.sustain, n.release, n.duration, t);
     return v;
 }

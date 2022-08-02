@@ -65,7 +65,8 @@ if __name__ == '__main__':
 
     music = json.load(open(sys.argv[1]))
 
-    musicData = [struct.pack('ffifffff', float('inf'), 0.0, 0, 1.0, 1.0, 1.0, 1.0, 0.0)]
+    ctrlData = []
+    musicData = [struct.pack('fffifffffii', float('inf'), 0.0, 0.0, 0, 1.0, 1.0, 1.0, 1.0, 0.0, 0, 0)]
     for n in music:
         waveform = n[1]
         if 'tri' in n[4]:
@@ -77,15 +78,27 @@ if __name__ == '__main__':
         if 'pulse' in n[4]:
             waveform |= 0x80
 
-        musicData.append(struct.pack('ffifffff', n[0], n[2], waveform, n[5], n[6], n[7], n[8], n[9]))
+        ctrlOffset = len(ctrlData)
+        ctrlCount = len(n[10])
+        for ctrl in n[10]:
+            ctrlData.append(struct.pack('ff', ctrl[0], ctrl[1]))
+
+        musicData.append(struct.pack('fffifffffii', n[0], n[2], n[3], waveform,
+                                     n[5], n[6], n[7], n[8], n[9], ctrlOffset, ctrlCount))
 
     noteCount = len(musicData)
     musicData = b''.join(musicData)
+    ctrlData = b''.join(ctrlData)
 
     musicBuffer = glGenBuffers(1)
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, musicBuffer)
     glBufferData(GL_SHADER_STORAGE_BUFFER, len(musicData), musicData, GL_STATIC_DRAW)
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, musicBuffer)
+
+    ctrlBuffer = glGenBuffers(1)
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ctrlBuffer)
+    glBufferData(GL_SHADER_STORAGE_BUFFER, len(ctrlData), ctrlData, GL_STATIC_DRAW)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ctrlBuffer)
 
     sampleBuffer = glGenBuffers(1)
     glBindBuffer(GL_COPY_READ_BUFFER, sampleBuffer)
@@ -101,7 +114,7 @@ if __name__ == '__main__':
     glUniform1i(glGetUniformLocation(synthesizer, 'noteCount'), noteCount)
 
     data = []
-    for i in range((sampleFrequency * 200) // sampleSize):
+    for i in range(int(sampleFrequency * music[-1][0]) // sampleSize):
         glUniform1ui(glGetUniformLocation(synthesizer, 'sampleOffset'), i * sampleSize)
         glDispatchCompute(sampleSize // 16, 1, 1)
         glFinish()
