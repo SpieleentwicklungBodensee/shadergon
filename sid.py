@@ -77,6 +77,9 @@ def renderMusic(music, outfile):
         v = max(-1.0, min((v0 + v1 + v2) * 0.3, 1.0))
         frames[i] = int(v * 0x7fff)
 
+        if i%8000==0:
+            print(str(int(i*100/len(frames))) + "%")
+
     f.writeframes(b''.join([struct.pack('<h', fr) for fr in frames]))
 
 if __name__ == '__main__':
