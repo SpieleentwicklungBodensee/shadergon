@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import json, sys, wave, struct, math, random, sys
+import json, sys, wave, struct, random
 
 noise = [random.uniform(-1.0, 1.0) for i in range(1024 * 1024)]
 
